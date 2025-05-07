@@ -1,45 +1,42 @@
-azimuth_authentication_type: oidc
-ingress_tls_enabled: true
-azimuth_capi_operator_chart_version: 0.8.7-dev.0.oidc-flavours-test.19
-azimuth_identity_operator_chart_version: 0.8.6-dev.0.feat-additional-crds.6
+infra_flavor_id: 6b56d6e9-5397-4543-87fb-e0c0b6d47961
+infra_network_id: "{{ lookup('pipe', 'openstack network show test -f value -c id') }}"
 
 azimuth_capi_operator_capi_helm_chart_name: openstack-cluster
 azimuth_capi_operator_capi_helm_chart_repo: https://azimuth-cloud.github.io/capi-helm-charts
-azimuth_capi_operator_capi_helm_chart_version: 0.14.2-dev.0.intel-helm.11
+azimuth_capi_operator_capi_helm_chart_version: 0.14.2-dev.0.intel-helm.27
+azimuth_capi_operator_chart_version: 0.8.7-dev.0.pvctest.28
+
+flux_enabled: true
+azimuth_capi_operator_app_templates_jupyterhub_intel_enabled: true
+
 azimuth_capi_operator_release_overrides:
   config:
-    identity:
-      oidcEnabled: true
-      defaultUserNamespaceRole:
-        namespaces:
-        - prod
-        - dev
-        - staging
-      defaultUserClusterRole:
-        rules:
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - cronworkflows
-          - cronworkflows/finalizers
-          - clusterworkflowtemplates
-          - clusterworkflowtemplates/finalizers
-          verbs:
-          - create
-          - delete
-          - deletecollection
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups: ["apiextensions.k8s.io"]
-          resources: ["customresourcedefinitions"]
-          verbs: ["get","list","watch","create"]
     capiHelm:
       flavorSpecificNodeGroupOverrides:
-        'bm.*':
+        '*.pvc.*':
           kubeadmConfigSpec:
+            preKubeadmCommands:
+              - |
+                # Adapted from https://dgpu-docs.intel.com/driver/installation.html#ubuntu
+                sudo apt update
+                sudo apt install -y gpg-agent wget
+                . /etc/os-release
+                if [[ ! " jammy " =~ " ${VERSION_CODENAME} " ]]; then
+                    echo "Ubuntu version ${VERSION_CODENAME} not supported"
+                else
+                    wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | \
+                    sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+                    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu ${VERSION_CODENAME}/lts/2350 unified" | \
+                    sudo tee /etc/apt/sources.list.d/intel-gpu-${VERSION_CODENAME}.list
+                    sudo apt update
+                fi
+                sudo apt install -y \
+                    linux-headers-$(uname -r) \
+                    linux-modules-extra-$(uname -r) \
+                    flex bison \
+                    intel-fw-gpu intel-i915-dkms xpu-smi
+                # Avoids reboot
+                modprobe i915
             files:
             - path: /etc/kubernetes/patches/kubeletconfiguration0+strategic.json
               owner: "root:root"
@@ -77,25 +74,25 @@ azimuth_capi_operator_release_overrides:
                   key: gpu.intel.com/i915
                 
 azimuth_capi_operator_cluster_templates_extra:
-  intel-gpu-baremetal:
+  intel-pvc-cluster:
     annotations:
       acl.azimuth.stackhpc.com/allow-list: ''
       acl.azimuth.stackhpc.com/allow-regex: ''
       acl.azimuth.stackhpc.com/deny-list: ''
       acl.azimuth.stackhpc.com/deny-regex: ''
     spec:
-      label: intel-gpu-baremetal
-      description: HA Kubernetes v1.31.4 with OIDC and Intel XPU plugin
+      label: intel-pvc-cluster
+      description: HA Kubernetes v1.31.5 with Intel XPU plugin
       values:
-        kubernetesVersion: 1.31.4
-        machineImageId: "6ed3da4b-3b65-4d44-959f-f35956db1c78"
+        kubernetesVersion: 1.31.5
+        machineImageId: "f998a271-de4f-40ca-b70d-951d39dc56fe"
 
         clusterNetworking:
-          externalNetworkId: "4d00778c-303f-49b2-b624-e3004262312d"
+          externalNetworkId: "57add367-d205-4030-a929-d75617a7c63e"
           internalNetwork:
             networkFilter:
-              id: 5ee983c5-12b2-4bf4-83c6-e7cb394801e0
-              name: bm-test-net
+              id: ed05039e-3bc1-4e24-844b-89387eb297d2
+              name: test
         
         controlPlane:
           kubeadmConfigSpec:
@@ -123,14 +120,14 @@ azimuth_capi_operator_cluster_templates_extra:
           openstack:
             enabled: true
             # turn off cinder, as it doesn't work with baremetal
-            csiCinder:
-              enabled: false
-            csiManila:
-              enabled: true
-              defaultStorageClass:
-                isClusterDefault: true
-                parameters:
-                  type: ceph01_cephfs
+            # csiCinder:
+            #   enabled: false
+            # csiManila:
+            #   enabled: true
+            #   defaultStorageClass:
+            #     isClusterDefault: true
+            #     parameters:
+            #       type: ceph01_cephfs
           nodeFeatureDiscovery:
             enabled: true
           nvidiaGPUOperator:
@@ -161,60 +158,3 @@ azimuth_capi_operator_cluster_templates_extra:
                       enable-ssl-passthrough: "true"
           intelDevicePlugin:
             enabled: true
-            gpuPlugin:
-              release:
-                values:
-                  tolerations:
-                  - key: gpu.intel.com/i915
-                    operator: "Exists"
-                    effect: "NoSchedule"
-            xpuManagerMonitoring:
-              enabled: true
-          restrictedAdmission:
-            enabled: true
-            chart:
-              repo: https://azimuth-cloud.github.io/restricted-pss-vaps-helm/
-            release:
-              values:
-                defaultBindingNamespaceSelector:
-                  matchExpressions:
-                  - key: kubernetes.io/metadata.name
-                    operator: In
-                    values:
-                    - prod
-                    - dev
-                    - staging
-                allowedCapabilities:
-                - NET_BIND_SERVICE
-                - IPC_LOCK
-          custom:
-            oidc-user-prod-namespace:
-              kind: Manifests
-              spec:
-                namespace: prod
-                manifests:
-                  prod-namespace.yaml: |
-                    apiVersion: v1
-                    kind: Namespace
-                    metadata:
-                      name: prod
-            oidc-user-dev-namespace:
-              kind: Manifests
-              spec:
-                namespace: dev
-                manifests:
-                  dev-namespace.yaml: |
-                    apiVersion: v1
-                    kind: Namespace
-                    metadata:
-                      name: dev
-            oidc-user-staging-namespace:
-              kind: Manifests
-              spec:
-                namespace: staging
-                manifests:
-                  staging-namespace.yaml: |
-                    apiVersion: v1
-                    kind: Namespace
-                    metadata:
-                      name: staging
