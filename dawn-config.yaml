@@ -7,7 +7,6 @@ azimuth_capi_operator_capi_helm_chart_version: 0.14.2-dev.0.intel-helm.27
 azimuth_capi_operator_chart_version: 0.8.7-dev.0.pvctest.28
 
 flux_enabled: true
-azimuth_capi_operator_app_templates_jupyterhub_intel_enabled: true
 
 azimuth_capi_operator_release_overrides:
   config:
