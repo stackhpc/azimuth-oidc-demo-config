@@ -109,8 +109,7 @@ azimuth_capi_operator_cluster_templates_extra:
             cephfs:
               enabled: true
           openstack:
-            enabled: true #TODO: uncomment for manilla
-            # turn off cinder, as it doesn't work with baremetal
+            enabled: true #TODO: uncomment below for manila
             # csiCinder:
             #   enabled: false
             # csiManila:
