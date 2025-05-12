@@ -77,13 +77,6 @@ azimuth_capi_operator_cluster_templates_extra:
       values:
         kubernetesVersion: 1.31.5
         machineImageId: "f998a271-de4f-40ca-b70d-951d39dc56fe" #TODO: reconfigure
-
-        clusterNetworking:
-          externalNetworkId: "57add367-d205-4030-a929-d75617a7c63e" #TODO: reconfigure
-          internalNetwork:
-            networkFilter: #TODO: reconfigure
-              id: ed05039e-3bc1-4e24-844b-89387eb297d2
-              name: test
         
         controlPlane:
           kubeadmConfigSpec:
@@ -93,55 +86,10 @@ azimuth_capi_operator_cluster_templates_extra:
                   enable-admission-plugins: ExtendedResourceToleration
                 
         addons:
-          cni:
-            type: cilium
-            cilium:
-              release:
-                values:
-                  hubble:
-                    relay:
-                      enabled: true
-                    ui:
-                      enabled: true
           monitoring:
             enabled: true
-          csi:
-            cephfs:
-              enabled: true
-          openstack:
-            enabled: true #TODO: uncomment below for manila
-            # csiCinder:
-            #   enabled: false
-            # csiManila:
-            #   enabled: true
-            #   defaultStorageClass:
-            #     isClusterDefault: true
-            #     parameters:
-            #       type: ceph01_cephfs
           nodeFeatureDiscovery:
             enabled: true
-          nvidiaGPUOperator:
-            enabled: false
-          mellanoxNetworkOperator:
-            enabled: true
-            release:
-              values:
-                rdmaSharedDevicePlugin:
-                  deploy: false
-                sriovDevicePlugin:
-                  deploy: true
-                ibKubernetes:
-                  deploy: true
-                secondaryNetwork:
-                  deploy: true
-          ingress:
-            enabled: true
-            nginx:
-              release:
-                values:
-                  controller:
-                    extraArgs:
-                      enable-ssl-passthrough: "true"
           intelDevicePlugin:
             enabled: true
 
