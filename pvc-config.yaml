@@ -125,3 +125,22 @@ azimuth_capi_operator_app_templates_extra:
                 default: true
       label: "JupyterHub (XPU)"
       description: "Multi-user Jupyter notebook environment with Intel GPU support."
+  huggingface-intel:
+    annotations:
+      acl.azimuth.stackhpc.com/allow-list: ''
+      acl.azimuth.stackhpc.com/allow-regex: ''
+      acl.azimuth.stackhpc.com/deny-list: ''
+      acl.azimuth.stackhpc.com/deny-regex: ''
+    spec:
+      chart:
+        repo: https://stackhpc.github.io/azimuth-llm
+        name: azimuth-llm-chat
+      versionRange: ">=0.0.0"
+      keepVersions: 3
+      syncFrequency: 86400
+      defaultValues:
+        azimuth-llm:
+          api:
+            intelXPUsEnabled: true
+      label: "HuggingFace LLM (XPU)"
+      description: A generative AI chatbot service backed by a HuggingFace large language model (requires an XPU node group on the target cluster).
