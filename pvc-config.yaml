@@ -64,34 +64,49 @@ azimuth_capi_operator_release_overrides:
                 - effect: NoSchedule
                   key: gpu.intel.com/i915
                 
-azimuth_capi_operator_cluster_templates_extra:
-  intel-pvc-cluster:
-    annotations:
-      acl.azimuth.stackhpc.com/allow-list: ''
-      acl.azimuth.stackhpc.com/allow-regex: ''
-      acl.azimuth.stackhpc.com/deny-list: ''
-      acl.azimuth.stackhpc.com/deny-regex: ''
-    spec:
-      label: intel-pvc-cluster
-      description: HA Kubernetes v1.31.5 with Intel XPU plugin
-      values:
-        kubernetesVersion: 1.31.5
-        machineImageId: "f998a271-de4f-40ca-b70d-951d39dc56fe" #TODO: reconfigure
-        
-        controlPlane:
-          kubeadmConfigSpec:
-            clusterConfiguration:
-              apiServer:
-                extraArgs:
-                  enable-admission-plugins: ExtendedResourceToleration
-                
-        addons:
-          monitoring:
-            enabled: true
-          nodeFeatureDiscovery:
-            enabled: true
-          intelDevicePlugin:
-            enabled: true
+pvc_config_spec:
+  spec:
+    values:
+      controlPlane:
+        kubeadmConfigSpec:
+          clusterConfiguration:
+            apiServer:
+              extraArgs:
+                enable-admission-plugins: ExtendedResourceToleration
+              
+      addons:
+        monitoring:
+          enabled: true
+        nodeFeatureDiscovery:
+          enabled: true
+        intelDevicePlugin:
+          enabled: true
+
+azimuth_capi_operator_cluster_templates_extra: |-
+  {
+    {% for key, image in community_images.items() %}
+    {% if "kubernetes_version" in image %}
+    {% set kube_vn_no_prefix = image.kubernetes_version.removeprefix("v") %}
+    {% set kube_vn_dash = kube_vn_no_prefix | replace('.', '-') %}
+    "kube-{{ kube_vn_dash }}-xpu": {{
+      pvc_config_spec |
+        combine(
+          {
+            "spec": {
+              "label": image.kubernetes_version ~ "-xpu",
+              "description": "Kubernetes " ~ kube_vn_no_prefix ~ " with HA control plane and Intel GPU Plugin.",
+              "values": {
+                "kubernetesVersion": kube_vn_no_prefix,
+                "machineImageId": community_images_image_ids[key],
+              },
+            },
+          },
+          recursive = True
+        )
+    }},
+    {% endif %}
+    {% endfor %}
+  }
 
 azimuth_capi_operator_app_templates_extra:
   # The spec for the Intel XPU enabled JupyterHub app template
