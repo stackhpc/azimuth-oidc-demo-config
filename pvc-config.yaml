@@ -85,6 +85,12 @@ pvc_config_spec:
                     enabled: true
                   ui:
                     enabled: true
+        openstack:
+          enabled: true
+          csiCinder:
+            enabled: false
+          csiManila:
+            enabled: true
         monitoring:
           enabled: true
         nodeFeatureDiscovery:
