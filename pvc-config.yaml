@@ -75,6 +75,16 @@ pvc_config_spec:
                 enable-admission-plugins: ExtendedResourceToleration
               
       addons:
+        cni:
+          type: cilium
+          cilium:
+            release:
+              values:
+                hubble:
+                  relay:
+                    enabled: true
+                  ui:
+                    enabled: true
         monitoring:
           enabled: true
         nodeFeatureDiscovery:
