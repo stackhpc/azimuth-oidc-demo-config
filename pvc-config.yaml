@@ -65,61 +65,66 @@ azimuth_capi_operator_release_overrides:
                   key: gpu.intel.com/i915
                 
 pvc_config_spec:
-  spec:
-    values:
-      controlPlane:
-        kubeadmConfigSpec:
-          clusterConfiguration:
-            apiServer:
-              extraArgs:
-                enable-admission-plugins: ExtendedResourceToleration
-              
-      addons:
-        cni:
-          type: cilium
-          cilium:
-            release:
-              values:
-                hubble:
-                  relay:
-                    enabled: true
-                  ui:
-                    enabled: true
-        openstack:
+  values:
+    controlPlane:
+      kubeadmConfigSpec:
+        clusterConfiguration:
+          apiServer:
+            extraArgs:
+              enable-admission-plugins: ExtendedResourceToleration
+            
+    addons:
+      cni:
+        type: cilium
+        cilium:
+          release:
+            values:
+              hubble:
+                relay:
+                  enabled: true
+                ui:
+                  enabled: true
+      openstack:
+        enabled: true
+        csiCinder:
           enabled: true
-          csiCinder:
-            enabled: false
-          csiManila:
-            enabled: true
-        monitoring:
+        csiManila:
           enabled: true
-        nodeFeatureDiscovery:
-          enabled: true
-        intelDevicePlugin:
-          enabled: true
+          defaultStorageClass:
+            isClusterDefault: false
+            parameters:
+              type: ceph01_cephfs
+      monitoring:
+        enabled: true
+      nodeFeatureDiscovery:
+        enabled: true
+      intelDevicePlugin:
+        enabled: true
 
-azimuth_capi_operator_cluster_templates_extra: |-
+azimuth_capi_operator_cluster_templates_default: |-
   {
     {% for key, image in community_images.items() %}
     {% if "kubernetes_version" in image %}
-    {% set kube_vn_no_prefix = image.kubernetes_version.removeprefix("v") %}
+    {% set kube_vn_no_prefix = image.kubernetes_version | regex_replace('^v', '') %}
     {% set kube_vn_dash = kube_vn_no_prefix | replace('.', '-') %}
-    "kube-{{ kube_vn_dash }}-xpu": {{
-      pvc_config_spec |
-        combine(
-          {
-            "spec": {
-              "label": image.kubernetes_version ~ "-xpu",
-              "description": "Kubernetes " ~ kube_vn_no_prefix ~ " with HA control plane and Intel GPU Plugin.",
+    "kube-{{ kube_vn_dash }}": {
+      "annotations": {{ azimuth_capi_operator_cluster_template_annotations }},
+      "spec": {{
+        azimuth_capi_operator_cluster_template_defaults |
+          combine(
+            {
+              "label": image.kubernetes_version,
+              "description": "Kubernetes " ~ kube_vn_no_prefix ~ " with HA control plane.",
               "values": {
                 "kubernetesVersion": kube_vn_no_prefix,
                 "machineImageId": community_images_image_ids[key],
               },
             },
-          },
-          recursive = True
-        )
-    }},
+            recursive = True
+          ) |
+          combine(pvc_config_spec, recursive = True)
+      }},
+    },
     {% endif %}
     {% endfor %}
   }
